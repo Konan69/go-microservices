@@ -52,7 +52,7 @@ func (app *Config) authenticate(w http.ResponseWriter, a *AuthPayload) {
 
 	jsonData, _ := json.MarshalIndent(a, "", "\t")
 
-	request, err := http.NewRequest("POST", "http://auth-service/auth", bytes.NewBuffer(jsonData))
+	request, err := http.NewRequest("POST", "http://auth-service/authenticate", bytes.NewBuffer(jsonData))
 	if err != nil {
 		app.errorJson(w, err)
 		return
@@ -77,8 +77,9 @@ func (app *Config) authenticate(w http.ResponseWriter, a *AuthPayload) {
 	var jsonFromService jsonResponse
 
 	err = json.NewDecoder(response.Body).Decode(&jsonFromService)
+
 	if err != nil {
-		app.errorJson(w, err)
+		app.errorJson(w, errors.New("error decoding response from auth service"))
 		return
 	}
 

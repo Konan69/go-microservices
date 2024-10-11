@@ -3,19 +3,21 @@ package main
 import (
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 )
 
-
 func (app *Config) Authenticate(w http.ResponseWriter, r *http.Request) {
 	var requestPayload struct {
-		Email string `json:"email"`
+		Email    string `json:"email"`
 		Password string `json:"password"`
 	}
+	log.Printf("Request Payload: %+v", requestPayload)
 
 	err := app.readJSON(w, r, &requestPayload)
 	if err != nil {
 		app.errorJSON(w, err, http.StatusBadRequest)
+		log.Println(err)
 		return
 	}
 
@@ -32,10 +34,10 @@ func (app *Config) Authenticate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	payload := jsonResponse {
-		Error: false,
+	payload := jsonResponse{
+		Error:   false,
 		Message: fmt.Sprintf("Logged in user %s", user.Email),
-		Data: user,
+		Data:    user,
 	}
 
 	app.writeJSON(w, http.StatusAccepted, payload)

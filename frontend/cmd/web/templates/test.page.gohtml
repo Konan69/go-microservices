@@ -33,72 +33,102 @@
 
 {{define "js"}}
     <script>
-    let brokerBtn = document.getElementById("brokerBtn")
+    let brokerBtn = document.getElementById("brokerBtn");
     let authBrokerBtn = document.getElementById("authBrokerBtn");
 
     let output = document.getElementById("output");
     let sent = document.getElementById("payload");
-    let recevied = document.getElementById("received");
+    let received = document.getElementById("received"); // Corrected variable name
 
     authBrokerBtn.addEventListener("click", function() {
 
         const payload = {
             action: "auth",
             auth: {
-            email: "admin@example.com"
-            password: "verysectret"
+                email: "admin@example.com",
+                password: "verysecret" // Corrected typo: "verysectret" to "verysecret"
             }
         }
 
-        const headers = new Headers()
-        headers.append("Content-Type", "application/json")
+        const headers = new Headers();
+        headers.append("Content-Type", "application/json");
 
-        const body = {
+        const options = {
             method: 'POST',
             body: JSON.stringify(payload),
             headers: headers,
-        }
+        };
+        console.log("Payload Sent:", payload);
 
+        fetch("http://localhost:8080/handle", options)
+            .then((response) => {
+                // Log status and headers for debugging
+                console.log("Response Status:", response.status);
+                console.log("Response Headers:", response.headers);
 
-        fetch("http:\/\/localhost:8080/handle", body)
-        .then((response) => response.json())
-        .then((data) => {
-            sent.innerHTML = JSON.stringify(payload, undefined, 4);
-            received.innerHTML = JSON.stringify(data, undefined, 4);
-            if (data.error) {
-                output.innerHTML += `<br><strong>Error</strong>: ${data.message}`;
-                console.log(data.message);
-            } else {
-                output.innerHTML += `<br><strong>Response from broker service</strong>: ${data.message}`;
-            }
-        })
-        .catch((error) => {
-            output.innerHTML += "<br><br>Eror: " + error;
-        })
-    })
+                // Return response text for inspection
+                return response.text();
+            })
+            .then((text) => {
+                console.log("Raw Response Text:", text);
+                try {
+                    const data = JSON.parse(text);
+                    sent.innerHTML = JSON.stringify(payload, undefined, 4);
+                    received.innerHTML = JSON.stringify(data, undefined, 4);
+                    if (data.error) {
+                        output.innerHTML += `<br><strong>Error</strong>: ${data.message}`;
+                        console.log(data.message);
+                    } else {
+                        output.innerHTML += `<br><strong>Response from broker service</strong>: ${data.message}`;
+                    }
+                } catch (err) {
+                    output.innerHTML += `<br><strong>JSON Parse Error:</strong> ${err.message}`;
+                    console.error("JSON Parse Error:", err);
+                }
+            })
+            .catch((error) => {
+                output.innerHTML += "<br><br>Error: " + error;
+                console.error("Fetch Error:", error);
+            });
+    });
 
     brokerBtn.addEventListener("click", function() {
 
-        const body = {
+        const options = {
             method: 'POST',
-        }
+            headers: {
+                "Content-Type": "application/json"
+            },
+            // Include a body if required by the server
+            body: JSON.stringify({}) // Sending an empty JSON object
+        };
 
-        fetch("http:\/\/localhost:8080", body)
-        .then((response) => response.json())
-        .then((data) => {
-            sent.innerHTML ="empty post request";
-            received.innerHTML = JSON.stringify(data, undefined, 4);
-            if (data.error) {
-                console.log(data.message);
-            } else {
-                output.innerHTML += `<br><strong>Response from broker service</strong>: ${data.message}`;
-            }
-        })
-        .catch((error) => {
-            output.innerHTML += "<br><br>Eror: " + error;
-        })
-    })
-
-        
+        fetch("http://localhost:8080", options)
+            .then((response) => {
+                console.log("Response Status:", response.status);
+                console.log("Response Headers:", response.headers);
+                return response.text();
+            })
+            .then((text) => {
+                console.log("Raw Response Text:", text);
+                try {
+                    const data = JSON.parse(text);
+                    sent.innerHTML = "Empty POST request";
+                    received.innerHTML = JSON.stringify(data, undefined, 4);
+                    if (data.error) {
+                        console.log(data.message);
+                    } else {
+                        output.innerHTML += `<br><strong>Response from broker service</strong>: ${data.message}`;
+                    }
+                } catch (err) {
+                    output.innerHTML += `<br><strong>JSON Parse Error:</strong> ${err.message}`;
+                    console.error("JSON Parse Error:", err);
+                }
+            })
+            .catch((error) => {
+                output.innerHTML += "<br><br>Error: " + error;
+                console.error("Fetch Error:", error);
+            });
+    });
     </script>
 {{end}}
