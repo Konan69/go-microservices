@@ -40,7 +40,8 @@ func (app *Config) HandleSubmission(w http.ResponseWriter, r *http.Request) {
 	}
 	switch RequestPayload.Action {
 	case "auth":
-
+		app.authenticate(w, &RequestPayload.Auth)
+		return
 	default:
 		app.errorJson(w, errors.New("unknown action"))
 		return
@@ -85,5 +86,13 @@ func (app *Config) authenticate(w http.ResponseWriter, a *AuthPayload) {
 		app.errorJson(w, errors.New(jsonFromService.Message))
 		return
 	}
+
+	var payload jsonResponse
+
+	payload.Error = false
+	payload.Message = "Authentication successful"
+	payload.Data = jsonFromService.Data
+
+	app.writeJSON(w, http.StatusOK, payload)
 
 }

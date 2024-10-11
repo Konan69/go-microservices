@@ -1,6 +1,6 @@
-FRONT_END_BINARY=frontApp
-BROKER_BINARY=brokerApp
-AUTH_BINARY=authApp
+FRONT_END_BINARY=frontApp.exe
+BROKER_BINARY=brokerApp.exe
+AUTH_BINARY=authApp.exe
 
 ## up: starts all containers in the background without forcing build
 up:
@@ -9,7 +9,7 @@ up:
 	@echo "Docker images started!"
 
 ## up_build: stops docker-compose (if running), builds all projects and starts docker compose
-up_build: build_broker
+up_build: build_broker build_auth
 	@echo "Stopping docker images (if running...)"
 	docker-compose down
 	@echo "Building (when required) and starting docker images..."
