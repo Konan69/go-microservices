@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
 )
 
@@ -11,11 +12,19 @@ type RequestPayload struct {
 	Action string      `json:"action"`
 	Auth   AuthPayload `json:"auth,omitempty"`
 	Log    LogPayload  `json:"log,omitempty"`
+	Mail   MailPayload `json:"mail,omitempty"`
 }
 
 type AuthPayload struct {
 	Email    string `json:"email"`
 	Password string `json:"password"`
+}
+
+type MailPayload struct {
+	From    string `json:"from"`
+	To      string `json:"to"`
+	Subject string `json:"subject"`
+	Message string `json:"message"`
 }
 
 type LogPayload struct {
@@ -50,6 +59,8 @@ func (app *Config) HandleSubmission(w http.ResponseWriter, r *http.Request) {
 		return
 	case "log":
 		app.logItem(w, &RequestPayload.Log)
+	case "mail":
+		app.sendMail(w, &RequestPayload.Mail)
 	default:
 		app.errorJson(w, errors.New("unknown action"))
 		return
@@ -131,4 +142,45 @@ func (app *Config) logItem(w http.ResponseWriter, l *LogPayload) {
 	payload.Message = "Log entry inserted successfully"
 
 	app.writeJSON(w, http.StatusAccepted, payload)
+}
+
+func (app *Config) sendMail(w http.ResponseWriter, msg *MailPayload) {
+	jsonData, _ := json.MarshalIndent(msg, "", "\t")
+
+	mailServiceURL := "http://mail-service/send"
+
+	request, err := http.NewRequest("POST", mailServiceURL, bytes.NewBuffer(jsonData))
+	if err != nil {
+		app.errorJson(w, err)
+		return
+	}
+
+	request.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{}
+	response, err := client.Do(request)
+
+	if err != nil {
+		app.errorJson(w, err)
+		return
+	}
+	defer response.Body.Close()
+
+	//make sure the right status code is returned
+
+	if response.StatusCode != http.StatusAccepted {
+		bodyBytes, _ := io.ReadAll(response.Body)
+
+		app.errorJson(w, errors.New(string(bodyBytes)))
+		return
+	}
+
+	//send back json
+
+	var payload jsonResponse
+	payload.Error = false
+	payload.Message = "message sent to " + msg.To
+
+	app.writeJSON(w, http.StatusAccepted, payload)
+
 }
