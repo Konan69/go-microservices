@@ -1,6 +1,7 @@
 package main
 
 import (
+	"broker/event"
 	"bytes"
 	"encoding/json"
 	"errors"
@@ -58,7 +59,7 @@ func (app *Config) HandleSubmission(w http.ResponseWriter, r *http.Request) {
 		app.authenticate(w, &RequestPayload.Auth)
 		return
 	case "log":
-		app.logItem(w, &RequestPayload.Log)
+		app.LogEventViaRabbit(w, RequestPayload.Log)
 	case "mail":
 		app.sendMail(w, &RequestPayload.Mail)
 	default:
@@ -117,32 +118,32 @@ func (app *Config) authenticate(w http.ResponseWriter, a *AuthPayload) {
 
 }
 
-func (app *Config) logItem(w http.ResponseWriter, l *LogPayload) {
-	jsonData, _ := json.MarshalIndent(l, "", "\t")
-	request, err := http.NewRequest("POST", "http://logger-service/log", bytes.NewBuffer(jsonData))
-	if err != nil {
-		app.errorJson(w, err)
-		return
-	}
-	request.Header.Set("Content-Type", "application/json")
-	client := &http.Client{}
-	response, err := client.Do(request)
-	if err != nil {
-		app.errorJson(w, err)
-		return
-	}
-	defer response.Body.Close()
+// func (app *Config) logItem(w http.ResponseWriter, l *LogPayload) {
+// 	jsonData, _ := json.MarshalIndent(l, "", "\t")
+// 	request, err := http.NewRequest("POST", "http://logger-service/log", bytes.NewBuffer(jsonData))
+// 	if err != nil {
+// 		app.errorJson(w, err)
+// 		return
+// 	}
+// 	request.Header.Set("Content-Type", "application/json")
+// 	client := &http.Client{}
+// 	response, err := client.Do(request)
+// 	if err != nil {
+// 		app.errorJson(w, err)
+// 		return
+// 	}
+// 	defer response.Body.Close()
 
-	if response.StatusCode != http.StatusAccepted {
-		app.errorJson(w, err)
-	}
+// 	if response.StatusCode != http.StatusAccepted {
+// 		app.errorJson(w, err)
+// 	}
 
-	var payload jsonResponse
-	payload.Error = false
-	payload.Message = "Log entry inserted successfully"
+// 	var payload jsonResponse
+// 	payload.Error = false
+// 	payload.Message = "Log entry inserted successfully"
 
-	app.writeJSON(w, http.StatusAccepted, payload)
-}
+// 	app.writeJSON(w, http.StatusAccepted, payload)
+// }
 
 func (app *Config) sendMail(w http.ResponseWriter, msg *MailPayload) {
 	jsonData, _ := json.MarshalIndent(msg, "", "\t")
@@ -182,5 +183,37 @@ func (app *Config) sendMail(w http.ResponseWriter, msg *MailPayload) {
 	payload.Message = "message sent to " + msg.To
 
 	app.writeJSON(w, http.StatusAccepted, payload)
+}
 
+func (app *Config) LogEventViaRabbit(w http.ResponseWriter, l LogPayload) {
+	err := app.pushToQueue(l.Name, l.Data)
+	if err != nil {
+		app.errorJson(w, err)
+		return
+	}
+
+	var payload jsonResponse
+	payload.Error = false
+	payload.Message = "logged via RabbitMQ"
+
+	app.writeJSON(w, http.StatusAccepted, payload)
+}
+
+func (app *Config) pushToQueue(name, msg string) error {
+	emitter, err := event.NewEventEmitter(app.Rabbit)
+	if err != nil {
+		return err
+	}
+
+	payload := LogPayload{
+		Name: name,
+		Data: msg,
+	}
+
+	j, _ := json.MarshalIndent(&payload, "", "\t")
+	err = emitter.Push(string(j), "log.INFO")
+	if err != nil {
+		return err
+	}
+	return nil
 }
