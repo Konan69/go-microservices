@@ -54,6 +54,9 @@ func main() {
 	err = rpc.Register(new(RPCServer))
 	go app.rpcListen()
 
+	// start grpc listenee
+	go app.gRPCListen()
+
 	//start the server
 	log.Println("Starting server...")
 	srv := &http.Server{
